@@ -9,6 +9,7 @@ use crate::{
     client,
     connection::ConnectionState,
     error::{Code, Error, Kind},
+    http3_quinn,
     proto::{
         coding::Encode,
         frame::{self, Frame, FrameType},
@@ -19,7 +20,6 @@ use crate::{
     qpack, server,
 };
 
-use crate::quinn as http3_quinn;
 use super::{init_tracing, Pair};
 
 #[tokio::test]
