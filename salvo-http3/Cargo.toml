@@ -34,7 +34,7 @@ futures-util = { version = "0.3", default-features = false, features = ["io"] }
 proptest = "1"
 quinn = { version = "0.10", default-features = false, features = ["runtime-tokio", "tls-rustls", "ring"] }
 quinn-proto = { version = "0.10", default-features = false }
-rcgen = "0.10"
+rcgen = "0.11"
 rustls = "0.21"
 tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log"] }

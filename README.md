@@ -56,7 +56,7 @@ The [examples](./examples) directory can help get started in two ways:
 ### Server
 
 ```rust
-let (endpoint, mut incoming) = h3_quinn::quinn::Endpoint::server(server_config, "[::]:443".parse()?)?;
+let (endpoint, mut incoming) = http3_quinn::quinn::Endpoint::server(server_config, "[::]:443".parse()?)?;
 
 while let Some((req, stream)) = h3_conn.accept().await? {
     loop {
@@ -90,7 +90,7 @@ You can find a full server example in [`examples/server.rs`](./examples/server.r
 ``` rust
 let addr: SocketAddr = "[::1]:443".parse()?;
 
-let quic = h3_quinn::Connection::new(client_endpoint.connect(addr, "server")?.await?);
+let quic = http3_quinn::Connection::new(client_endpoint.connect(addr, "server")?.await?);
 let (mut driver, mut send_request) = h3::client::new(quinn_conn).await?;
 
 let drive = async move {

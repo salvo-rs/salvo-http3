@@ -7,7 +7,7 @@ use structopt::StructOpt;
 use tokio::{fs::File, io::AsyncReadExt};
 use tracing::{error, info, trace_span};
 
-use salvo_http3::{error::ErrorLevel, quinn, quic::BidiStream, server::RequestStream};
+use salvo_http3::{error::ErrorLevel, http3_quinn, quic::BidiStream, server::RequestStream};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "server")]
@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(conn) => {
                     info!("new connection established");
 
-                    let mut h3_conn = salvo_http3::server::Connection::new(salvo_http3::quinn::Connection::new(conn))
+                    let mut h3_conn = salvo_http3::server::Connection::new(http3_quinn::Connection::new(conn))
                         .await
                         .unwrap();
 

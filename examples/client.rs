@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use tokio::io::AsyncWriteExt;
 use tracing::{error, info};
 
-use salvo_http3::quinn;
+use salvo_http3::http3_quinn;
 
 static ALPN: &[u8] = b"h3";
 
@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tls_config.key_log = Arc::new(rustls::KeyLogFile::new());
     }
 
-    let mut client_endpoint = salvo_http3::quinn::Endpoint::client("[::]:0".parse().unwrap())?;
+    let mut client_endpoint = http3_quinn::Endpoint::client("[::]:0".parse().unwrap())?;
 
     let client_config = quinn::ClientConfig::new(Arc::new(tls_config));
     client_endpoint.set_default_client_config(client_config);
@@ -110,8 +110,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // h3 is designed to work with different QUIC implementations via
     // a generic interface, that is, the [`quic::Connection`] trait.
-    // h3_quinn implements the trait w/ quinn to make it work with h3.
-    let quinn_conn = salvo_http3::quinn::Connection::new(conn);
+    // http3_quinn implements the trait w/ quinn to make it work with h3.
+    let quinn_conn = http3_quinn::Connection::new(conn);
 
     let (mut driver, mut send_request) = salvo_http3::client::new(quinn_conn).await?;
 

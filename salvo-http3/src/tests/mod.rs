@@ -11,7 +11,7 @@ use std::{
 use bytes::Bytes;
 use rustls::{Certificate, PrivateKey};
 
-use crate::{quic, quinn::{self, TransportConfig}};
+use crate::{quic, http3_quinn::{self, TransportConfig}};
 
 pub fn init_tracing() {
     let _ = tracing_subscriber::fmt()
@@ -98,7 +98,7 @@ impl Pair {
 
         let client_config = quinn::ClientConfig::new(Arc::new(crypto));
 
-        let mut client_endpoint = crate::quinn::Endpoint::client("[::]:0".parse().unwrap()).unwrap();
+        let mut client_endpoint = http3_quinn::Endpoint::client("[::]:0".parse().unwrap()).unwrap();
         client_endpoint.set_default_client_config(client_config);
         client_endpoint
             .connect(addr, "localhost")
@@ -107,8 +107,8 @@ impl Pair {
             .unwrap()
     }
 
-    pub async fn client(&self) -> crate::quinn::Connection {
-        crate::quinn::Connection::new(self.client_inner().await)
+    pub async fn client(&self) -> http3_quinn::Connection {
+        http3_quinn::Connection::new(self.client_inner().await)
     }
 }
 
@@ -118,7 +118,7 @@ pub struct Server {
 
 impl Server {
     pub async fn next(&mut self) -> impl quic::Connection<Bytes> {
-        crate::quinn::Connection::new(self.endpoint.accept().await.unwrap().await.unwrap())
+        http3_quinn::Connection::new(self.endpoint.accept().await.unwrap().await.unwrap())
     }
 }
 

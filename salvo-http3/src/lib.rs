@@ -26,7 +26,7 @@ pub mod stream;
 pub mod webtransport;
 
 #[cfg(feature = "quinn")]
-pub mod quinn;
+pub mod http3_quinn;
 
 #[allow(dead_code)]
 mod qpack;

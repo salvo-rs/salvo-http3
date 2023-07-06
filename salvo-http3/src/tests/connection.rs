@@ -12,6 +12,7 @@ use crate::{
     client::{self, SendRequest},
     connection::ConnectionState,
     error::{Code, Error, Kind},
+    http3_quinn,
     proto::{
         coding::Encode as _,
         frame::{Frame, Settings},
@@ -331,7 +332,7 @@ async fn control_close_send_error() {
         //# error of type H3_CLOSED_CRITICAL_STREAM.
         control_stream.finish().await.unwrap(); // close the client control stream immediately
 
-        let (mut driver, _send) = client::new(crate::quinn::Connection::new(connection))
+        let (mut driver, _send) = client::new(http3_quinn::Connection::new(connection))
             .await
             .unwrap();
 
@@ -473,7 +474,7 @@ async fn goaway_from_server_not_request_id() {
         control_stream.write_all(&buf[..]).await.unwrap();
         control_stream.finish().await.unwrap(); // close the client control stream immediately
 
-        let (mut driver, _send) = client::new(crate::quinn::Connection::new(connection))
+        let (mut driver, _send) = client::new(http3_quinn::Connection::new(connection))
             .await
             .unwrap();
 
