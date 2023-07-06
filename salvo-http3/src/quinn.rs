@@ -14,17 +14,18 @@ use std::{
 
 use bytes::{Buf, Bytes, BytesMut};
 
-use futures::{
+use futures_util::{
     ready,
     stream::{self, BoxStream},
     StreamExt,
 };
 use quinn::ReadDatagram;
 pub use quinn::{
-    self, crypto::Session, AcceptBi, AcceptUni, Endpoint, OpenBi, OpenUni, VarInt, WriteError,
+    self, crypto::Session, AcceptBi, AcceptUni, ClientConfig, Endpoint, OpenBi, OpenUni,
+    ServerConfig, TransportConfig, VarInt, WriteError,
 };
 
-use h3::{
+use crate::{
     ext::Datagram,
     quic::{self, Error, StreamId, WriteBuf},
 };
@@ -44,7 +45,7 @@ pub struct Connection {
 
 impl Connection {
     /// Create a [`Connection`] from a [`quinn::Connection`]
-    pub fn new(conn: quinn::Connection) -> Self {
+    pub fn new(conn: ::quinn::Connection) -> Self {
         Self {
             conn: conn.clone(),
             incoming_bi: Box::pin(stream::unfold(conn.clone(), |conn| async {
@@ -225,7 +226,7 @@ where
         }
     }
 
-    fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
+    fn close(&mut self, code: crate::error::Code, reason: &[u8]) {
         self.conn.close(
             VarInt::from_u64(code.value()).expect("error code VarInt"),
             reason,
@@ -318,7 +319,7 @@ where
         Poll::Ready(Ok(Self::SendStream::new(send)))
     }
 
-    fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
+    fn close(&mut self, code: crate::error::Code, reason: &[u8]) {
         self.conn.close(
             VarInt::from_u64(code.value()).expect("error code VarInt"),
             reason,
@@ -646,7 +647,7 @@ where
 
         let s = Pin::new(self.stream.as_mut().unwrap());
 
-        let res = ready!(futures::io::AsyncWrite::poll_write(s, cx, buf.chunk()));
+        let res = ready!(futures_util::io::AsyncWrite::poll_write(s, cx, buf.chunk()));
         match res {
             Ok(written) => {
                 buf.advance(written);

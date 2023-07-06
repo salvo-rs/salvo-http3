@@ -23,7 +23,6 @@ use crate::{
     server,
 };
 
-use super::h3_quinn;
 use super::{init_tracing, Pair};
 
 #[tokio::test]
@@ -258,7 +257,7 @@ async fn client_error_on_bidi_recv() {
         for _ in 0..100 {
             match send.write(b"I'm not really a server").await {
                 Err(quinn::WriteError::ConnectionLost(
-                    quinn::ConnectionError::ApplicationClosed(quinn::ApplicationClose {
+                    quinn::ConnectionError::ApplicationClosed(quinn_proto::ApplicationClose {
                         error_code,
                         ..
                     }),
@@ -332,7 +331,7 @@ async fn control_close_send_error() {
         //# error of type H3_CLOSED_CRITICAL_STREAM.
         control_stream.finish().await.unwrap(); // close the client control stream immediately
 
-        let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+        let (mut driver, _send) = client::new(crate::quinn::Connection::new(connection))
             .await
             .unwrap();
 
@@ -474,7 +473,7 @@ async fn goaway_from_server_not_request_id() {
         control_stream.write_all(&buf[..]).await.unwrap();
         control_stream.finish().await.unwrap(); // close the client control stream immediately
 
-        let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+        let (mut driver, _send) = client::new(crate::quinn::Connection::new(connection))
             .await
             .unwrap();
 

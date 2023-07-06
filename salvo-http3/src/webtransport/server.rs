@@ -1,4 +1,4 @@
-//! Provides the server side WebTransport session
+//! WebTransport supports.
 
 use std::{
     marker::PhantomData,
@@ -9,32 +9,28 @@ use std::{
 
 use bytes::Buf;
 use futures_util::{future::poll_fn, ready, Future};
-use h3::{
-    connection::ConnectionState,
-    error::{Code, ErrorLevel},
-    ext::{Datagram, Protocol},
-    frame::FrameStream,
-    proto::frame::Frame,
-    quic::{self, OpenStreams, RecvDatagramExt, SendDatagramExt, WriteBuf},
-    server::{self, Connection, RequestStream},
-    Error,
-};
-use h3::{
-    quic::SendStreamUnframed,
-    stream::{BidiStreamHeader, BufRecvStream, UniStreamHeader},
-};
-use http::{Method, Request, Response, StatusCode};
-
-use h3::webtransport::SessionId;
+use http::{Request, Response, StatusCode};
 use pin_project_lite::pin_project;
 
-use crate::stream::{BidiStream, RecvStream, SendStream};
+use crate::{
+    connection::ConnectionState,
+    error::{Code, ErrorLevel},
+    ext::Datagram,
+    frame::FrameStream,
+    proto::frame::Frame,
+    quic::SendStreamUnframed,
+    quic::{self, OpenStreams, RecvDatagramExt, SendDatagramExt, WriteBuf},
+    server::{self, Connection, RequestStream},
+    stream::{BidiStreamHeader, BufRecvStream, UniStreamHeader},
+    Error,
+};
 
-/// WebTransport session driver.
-///
-/// Maintains the session using the underlying HTTP/3 connection.
-///
-/// Similar to [`h3::server::Connection`](https://docs.rs/h3/latest/h3/server/struct.Connection.html) it is generic over the QUIC implementation and Buffer.
+use super::{
+    stream::{BidiStream, RecvStream, SendStream},
+    SessionId,
+};
+
+/// A WebTransport session.
 pub struct WebTransportSession<C, B>
 where
     C: quic::Connection<B>,
@@ -48,6 +44,7 @@ where
     opener: Mutex<C::OpenStreams>,
 }
 
+#[allow(clippy::future_not_send)]
 impl<C, B> WebTransportSession<C, B>
 where
     C: quic::Connection<B>,
@@ -57,7 +54,6 @@ where
     ///
     /// TODO: is the API or the user responsible for validating the CONNECT request?
     pub async fn accept(
-        request: Request<()>,
         mut stream: RequestStream<C::BidiStream, B>,
         mut conn: Connection<C, B>,
     ) -> Result<Self, Error> {
@@ -99,19 +95,12 @@ where
         // Respond to the CONNECT request.
 
         //= https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3/#section-3.3
-        let response = if validate_wt_connect(&request) {
-            Response::builder()
-                // This is the only header that chrome cares about.
-                .header("sec-webtransport-http3-draft", "draft02")
-                .status(StatusCode::OK)
-                .body(())
-                .unwrap()
-        } else {
-            Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(())
-                .unwrap()
-        };
+        let response = Response::builder()
+            // This is the only header that chrome cares about.
+            .header("sec-webtransport-http3-draft", "draft02")
+            .status(StatusCode::OK)
+            .body(())
+            .unwrap();
 
         stream.send_response(response).await?;
 
@@ -129,10 +118,7 @@ where
 
     /// Receive a datagram from the client
     pub fn accept_datagram(&self) -> ReadDatagram<C, B> {
-        ReadDatagram {
-            conn: &self.server_conn,
-            _marker: PhantomData,
-        }
+        ReadDatagram::new(&self.server_conn)
     }
 
     /// Sends a datagram
@@ -152,9 +138,7 @@ where
 
     /// Accept an incoming unidirectional stream from the client, it reads the stream until EOF.
     pub fn accept_uni(&self) -> AcceptUni<C, B> {
-        AcceptUni {
-            conn: &self.server_conn,
-        }
+        AcceptUni::new(&self.server_conn)
     }
 
     /// Accepts an incoming bidirectional stream or request
@@ -175,8 +159,8 @@ where
             }
             Err(err) => {
                 match err.kind() {
-                    h3::error::Kind::Closed => return Ok(None),
-                    h3::error::Kind::Application {
+                    crate::error::Kind::Closed => return Ok(None),
+                    crate::error::Kind::Application {
                         code,
                         reason,
                         level: ErrorLevel::ConnectionError,
@@ -226,20 +210,12 @@ where
 
     /// Open a new bidirectional stream
     pub fn open_bi(&self, session_id: SessionId) -> OpenBi<C, B> {
-        OpenBi {
-            opener: &self.opener,
-            stream: None,
-            session_id,
-        }
+        OpenBi::new(&self.opener, session_id)
     }
 
     /// Open a new unidirectional stream
     pub fn open_uni(&self, session_id: SessionId) -> OpenUni<C, B> {
-        OpenUni {
-            opener: &self.opener,
-            stream: None,
-            session_id,
-        }
+        OpenUni::new(&self.opener, session_id)
     }
 
     /// Returns the session id
@@ -266,6 +242,22 @@ pin_project! {
         opener: &'a Mutex<C::OpenStreams>,
         stream: Option<PendingStreams<C,B>>,
         session_id: SessionId,
+    }
+}
+
+impl<'a, C: quic::Connection<B>, B: Buf> OpenBi<'a, C, B> {
+    #[allow(missing_docs)]
+    pub fn new(opener: &'a Mutex<C::OpenStreams>, session_id: SessionId) -> Self {
+        Self {
+            opener,
+            stream: None,
+            session_id,
+        }
+    }
+    #[allow(missing_docs)]
+    pub fn with_stream(mut self, stream: impl Into<Option<PendingStreams<C, B>>>) -> Self {
+        self.stream = stream.into();
+        self
     }
 }
 
@@ -310,6 +302,22 @@ pin_project! {
         stream: Option<PendingUniStreams<C, B>>,
         // Future for opening a uni stream
         session_id: SessionId,
+    }
+}
+
+impl<'a, C: quic::Connection<B>, B: Buf> OpenUni<'a, C, B> {
+    #[allow(missing_docs)]
+    pub fn new(opener: &'a Mutex<C::OpenStreams>, session_id: SessionId) -> Self {
+        Self {
+            opener,
+            stream: None,
+            session_id,
+        }
+    }
+    #[allow(missing_docs)]
+    pub fn with_stream(mut self, stream: impl Into<Option<PendingUniStreams<C, B>>>) -> Self {
+        self.stream = stream.into();
+        self
     }
 }
 
@@ -369,6 +377,20 @@ where
     _marker: PhantomData<B>,
 }
 
+impl<'a, C, B> ReadDatagram<'a, C, B>
+where
+    C: quic::Connection<B>,
+    B: Buf,
+{
+    #[allow(missing_docs)]
+    pub fn new(conn: &'a Mutex<Connection<C, B>>) -> Self {
+        Self {
+            conn,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<'a, C, B> Future for ReadDatagram<'a, C, B>
 where
     C: quic::Connection<B> + RecvDatagramExt,
@@ -397,7 +419,18 @@ where
     C: quic::Connection<B>,
     B: Buf,
 {
-    conn: &'a Mutex<server::Connection<C, B>>,
+    conn: &'a Mutex<Connection<C, B>>,
+}
+
+impl<'a, C, B> AcceptUni<'a, C, B>
+where
+    C: quic::Connection<B>,
+    B: Buf,
+{
+    #[allow(missing_docs)]
+    pub fn new(conn: &'a Mutex<server::Connection<C, B>>) -> Self {
+        Self { conn }
+    }
 }
 
 impl<'a, C, B> Future for AcceptUni<'a, C, B>
@@ -419,9 +452,4 @@ where
 
         Poll::Pending
     }
-}
-
-fn validate_wt_connect(request: &Request<()>) -> bool {
-    let protocol = request.extensions().get::<Protocol>();
-    matches!((request.method(), protocol), (&Method::CONNECT, Some(p)) if p == &Protocol::WEB_TRANSPORT)
 }

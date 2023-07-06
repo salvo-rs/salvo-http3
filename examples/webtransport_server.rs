@@ -1,18 +1,18 @@
 use anyhow::{Context, Result};
 use bytes::{BufMut, Bytes, BytesMut};
-use h3::{
+use http::Method;
+use rustls::{Certificate, PrivateKey};
+use salvo_http3::{
     error::ErrorLevel,
     ext::Protocol,
     quic::{self, RecvDatagramExt, SendDatagramExt, SendStreamUnframed},
+    quinn as h3_quinn,
     server::Connection,
+    webtransport::{
+        server::{self, WebTransportSession},
+        stream,
+    },
 };
-use h3_quinn::quinn;
-use h3_webtransport::{
-    server::{self, WebTransportSession},
-    stream,
-};
-use http::Method;
-use rustls::{Certificate, PrivateKey};
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 use structopt::StructOpt;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -118,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match new_conn.await {
                 Ok(conn) => {
                     info!("new http3 established");
-                    let h3_conn = h3::server::builder()
+                    let h3_conn = salvo_http3::server::builder()
                         .enable_webtransport(true)
                         .enable_connect(true)
                         .enable_datagram(true)
@@ -175,7 +175,7 @@ async fn handle_connection(mut conn: Connection<h3_quinn::Connection, Bytes>) ->
                         tracing::info!("Peer wants to initiate a webtransport session");
 
                         tracing::info!("Handing over connection to WebTransport");
-                        let session = WebTransportSession::accept(req, stream, conn).await?;
+                        let session = WebTransportSession::accept(stream, conn).await?;
                         tracing::info!("Established webtransport session");
                         // 4. Get datagrams, bidirectional streams, and unidirectional streams and wait for client requests here.
                         // h3_conn needs to handover the datagrams, bidirectional streams, and unidirectional streams to the webtransport session.
@@ -275,12 +275,12 @@ where
     // backend.
     C: 'static
         + Send
-        + h3::quic::Connection<Bytes>
+        + salvo_http3::quic::Connection<Bytes>
         + RecvDatagramExt<Buf = Bytes>
         + SendDatagramExt<Bytes>,
-    <C::SendStream as h3::quic::SendStream<Bytes>>::Error:
+    <C::SendStream as salvo_http3::quic::SendStream<Bytes>>::Error:
         'static + std::error::Error + Send + Sync + Into<std::io::Error>,
-    <C::RecvStream as h3::quic::RecvStream>::Error:
+    <C::RecvStream as salvo_http3::quic::RecvStream>::Error:
         'static + std::error::Error + Send + Sync + Into<std::io::Error>,
     stream::BidiStream<C::BidiStream, Bytes>:
         quic::BidiStream<Bytes> + Unpin + AsyncWrite + AsyncRead,

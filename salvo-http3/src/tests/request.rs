@@ -19,7 +19,7 @@ use crate::{
     qpack, server,
 };
 
-use super::h3_quinn;
+use crate::quinn as h3_quinn;
 use super::{init_tracing, Pair};
 
 #[tokio::test]
@@ -1425,7 +1425,7 @@ where
             .map(|_| ());
         check(res);
 
-        let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+        let (mut driver, _send) = client::new(crate::quinn::Connection::new(connection))
             .await
             .unwrap();
 

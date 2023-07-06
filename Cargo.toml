@@ -1,8 +1,7 @@
 [workspace]
+resolver = "2"
 members = [
-    "h3",
-    "h3-quinn",
-    "h3-webtransport",
+    "salvo-http3",
 
     # Internal
     "examples",

@@ -1,0 +1,41 @@
+[package]
+name = "salvo-http3"
+version = "0.0.2"
+rust-version = "1.65"
+authors = ["Sean McArthur <sean@seanmonstar.com>", "Jean-Christophe BEGUE <jc.begue@pm.me>", "Chrislearn Young <chrislearn@hotmail.com>"]
+license = "MIT"
+edition = "2021"
+documentation = "https://docs.rs/h3"
+repository = "https://github.com/hyperium/h3"
+readme = "../README.md"
+description = "An async HTTP/3 implementation."
+keywords = ["http3", "quic", "h3"]
+categories = ["network-programming", "web-programming::http-client", "web-programming::http-server"]
+
+[features]
+default = ["quinn"]
+quinn = ["dep:quinn", "dep:quinn-proto"]
+
+[dependencies]
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["io"] }
+http = "0.2.9"
+tokio = { version = "1", features = ["sync", "io-util"] }
+pin-project-lite = { version = "0.2", default_features = false }
+tracing = "0.1.37"
+fastrand = "2"
+quinn = { version = "0.10", default-features = false, optional = true, features = ["futures-io"] }
+quinn-proto = { version = "0.10", default-features = false, optional = true }
+tokio-util = { version = "0.7.7" }
+
+[dev-dependencies]
+assert_matches = "1.5.0"
+futures-util = { version = "0.3", default-features = false, features = ["io"] }
+proptest = "1"
+quinn = { version = "0.10", default-features = false, features = ["runtime-tokio", "tls-rustls", "ring"] }
+quinn-proto = { version = "0.10", default-features = false }
+rcgen = "0.10"
+rustls = "0.21"
+tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std", "rt-multi-thread"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log"] }
+tokio-util = { version = "0.7.7" }
