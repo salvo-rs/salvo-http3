@@ -5,11 +5,11 @@ rust-version = "1.65"
 authors = ["Sean McArthur <sean@seanmonstar.com>", "Jean-Christophe BEGUE <jc.begue@pm.me>", "Chrislearn Young <chrislearn@hotmail.com>"]
 license = "MIT"
 edition = "2021"
-documentation = "https://docs.rs/h3"
-repository = "https://github.com/hyperium/h3"
+documentation = "https://docs.rs/salvo-http3"
+repository = "https://github.com/salvo-rs/salvo-http3"
 readme = "../README.md"
 description = "An async HTTP/3 implementation."
-keywords = ["http3", "quic", "h3"]
+keywords = ["http3", "quic", "quinn", "salvo"]
 categories = ["network-programming", "web-programming::http-client", "web-programming::http-server"]
 
 [features]
