@@ -11,11 +11,11 @@ use stream::WriteBuf;
 use tracing::{trace, warn};
 
 use crate::{
-    config::Config,
+    config::{Config, Settings},
     error::{Code, Error},
     frame::FrameStream,
     proto::{
-        frame::{Frame, PayloadLen, SettingId, Settings},
+        frame::{self, Frame, PayloadLen},
         headers::Header,
         stream::StreamType,
         varint::VarInt,
@@ -30,7 +30,7 @@ use crate::{
 #[non_exhaustive]
 pub struct SharedState {
     // Peer settings
-    pub peer_config: Config,
+    pub peer_config: Settings,
     // connection-wide error, concerns all RequestStreams and drivers
     pub error: Option<Error>,
     // Has a GOAWAY frame been sent or received?
@@ -54,7 +54,7 @@ impl SharedStateRef {
 impl Default for SharedStateRef {
     fn default() -> Self {
         Self(Arc::new(RwLock::new(SharedState {
-            peer_config: Config::default(),
+            peer_config: Default::default(),
             error: None,
             closing: false,
         })))
@@ -142,64 +142,15 @@ where
     C: quic::Connection<B>,
     B: Buf,
 {
-    /// Initiates the connection and opens a control stream
-    pub async fn new(mut conn: C, shared: SharedStateRef, config: Config) -> Result<Self, Error> {
-        //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2
-        //# Endpoints SHOULD create the HTTP control stream as well as the
-        //# unidirectional streams required by mandatory extensions (such as the
-        //# QPACK encoder and decoder streams) first, and then create additional
-        //# streams as allowed by their peer.
-        let mut control_send = future::poll_fn(|cx| conn.poll_open_send(cx))
-            .await
-            .map_err(|e| Code::H3_STREAM_CREATION_ERROR.with_transport(e))?;
-
-        let mut settings = Settings::default();
-
-        settings
-            .insert(
-                SettingId::MAX_HEADER_LIST_SIZE,
-                config.max_field_section_size,
-            )
-            .map_err(|e| Code::H3_INTERNAL_ERROR.with_cause(e))?;
-
-        settings
-            .insert(
-                SettingId::ENABLE_CONNECT_PROTOCOL,
-                config.enable_extended_connect as u64,
-            )
-            .map_err(|e| Code::H3_INTERNAL_ERROR.with_cause(e))?;
-        settings
-            .insert(
-                SettingId::ENABLE_WEBTRANSPORT,
-                config.enable_webtransport as u64,
-            )
-            .map_err(|e| Code::H3_INTERNAL_ERROR.with_cause(e))?;
-        settings
-            .insert(SettingId::H3_DATAGRAM, config.enable_datagram as u64)
-            .map_err(|e| Code::H3_INTERNAL_ERROR.with_cause(e))?;
-
-        tracing::debug!("Sending server settings: {:#x?}", settings);
-
-        if config.send_grease {
-            //  Grease Settings (https://www.rfc-editor.org/rfc/rfc9114.html#name-defined-settings-parameters)
-            //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.1
-            //# Setting identifiers of the format 0x1f * N + 0x21 for non-negative
-            //# integer values of N are reserved to exercise the requirement that
-            //# unknown identifiers be ignored.  Such settings have no defined
-            //# meaning.  Endpoints SHOULD include at least one such setting in their
-            //# SETTINGS frame.
-
-            //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.4.1
-            //# Setting identifiers that were defined in [HTTP/2] where there is no
-            //# corresponding HTTP/3 setting have also been reserved
-            //# (Section 11.2.2).  These reserved settings MUST NOT be sent, and
-            //# their receipt MUST be treated as a connection error of type
-            //# H3_SETTINGS_ERROR.
-            match settings.insert(SettingId::grease(), 0) {
-                Ok(_) => (),
-                Err(err) => warn!("Error when adding the grease Setting. Reason {}", err),
-            }
+    pub async fn send_settings(&mut self) -> Result<(), Error> {
+        #[cfg(test)]
+        if !self.config.send_settings {
+            return Ok(());
         }
+
+        let settings = frame::Settings::try_from(self.config)
+            .map_err(|e| Code::H3_INTERNAL_ERROR.with_cause(e))?;
+        tracing::debug!("Sending server settings: {:#x?}", settings);
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-3.2
         //# After the QUIC connection is
@@ -228,10 +179,23 @@ where
         //# as soon as the transport is ready to send data.
         trace!("Sending Settings frame: {:#x?}", settings);
         stream::write(
-            &mut control_send,
+            &mut self.control_send,
             WriteBuf::from(UniStreamHeader::Control(settings)),
         )
         .await?;
+        Ok(())
+    }
+
+    /// Initiates the connection and opens a control stream
+    pub async fn new(mut conn: C, shared: SharedStateRef, config: Config) -> Result<Self, Error> {
+        //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2
+        //# Endpoints SHOULD create the HTTP control stream as well as the
+        //# unidirectional streams required by mandatory extensions (such as the
+        //# QPACK encoder and decoder streams) first, and then create additional
+        //# streams as allowed by their peer.
+        let control_send = future::poll_fn(|cx| conn.poll_open_send(cx))
+            .await
+            .map_err(|e| Code::H3_STREAM_CREATION_ERROR.with_transport(e))?;
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
         //= type=implication
@@ -250,7 +214,10 @@ where
             send_grease_frame: config.send_grease,
             config,
             accepted_streams: Default::default(),
-        };
+        };        
+
+        conn_inner.send_settings().await?;
+
         // start a grease stream
         if config.send_grease {
             //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
@@ -383,7 +350,9 @@ where
                         );
                     }
                 }
-                AcceptedRecvStream::WebTransportUni(id, s) if self.config.enable_webtransport => {
+                AcceptedRecvStream::WebTransportUni(id, s)
+                    if self.config.settings.enable_webtransport =>
+                {
                     // Store until someone else picks it up, like a webtransport session which is
                     // not yet established.
                     self.accepted_streams.wt_uni_streams.push((id, s))
@@ -453,24 +422,7 @@ where
                         //# Endpoints MUST NOT consider such settings to have
                         //# any meaning upon receipt.
                         let mut shared = self.shared.write("connection settings write");
-                        shared.peer_config.max_field_section_size = settings
-                            .get(SettingId::MAX_HEADER_LIST_SIZE)
-                            .unwrap_or(VarInt::MAX.0);
-
-                        shared.peer_config.enable_webtransport =
-                            settings.get(SettingId::ENABLE_WEBTRANSPORT).unwrap_or(0) != 0;
-
-                        shared.peer_config.max_webtransport_sessions = settings
-                            .get(SettingId::WEBTRANSPORT_MAX_SESSIONS)
-                            .unwrap_or(0);
-
-                        shared.peer_config.enable_datagram =
-                            settings.get(SettingId::H3_DATAGRAM).unwrap_or(0) != 0;
-
-                        shared.peer_config.enable_extended_connect = settings
-                            .get(SettingId::ENABLE_CONNECT_PROTOCOL)
-                            .unwrap_or(0)
-                            != 0;
+                        shared.peer_config = (&settings).into();
 
                         Ok(Frame::Settings(settings))
                     }
