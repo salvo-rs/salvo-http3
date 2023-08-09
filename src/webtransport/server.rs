@@ -1,7 +1,7 @@
 //! WebTransport supports.
 
 use std::{
-    marker::PhantomData,
+    marker::{PhantomData, Send},
     pin::Pin,
     sync::Mutex,
     task::{Context, Poll},
@@ -33,7 +33,7 @@ use super::{
 /// A WebTransport session.
 pub struct WebTransportSession<C, B>
 where
-    C: quic::Connection<B>,
+    C: quic::Connection<B> + Send,
     B: Buf,
 {
     // See: https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3/#section-2-3
@@ -47,7 +47,7 @@ where
 #[allow(clippy::future_not_send)]
 impl<C, B> WebTransportSession<C, B>
 where
-    C: quic::Connection<B>,
+    C: quic::Connection<B> + Send,
     B: Buf,
 {
     /// Split the session into the underlying connection and stream.
