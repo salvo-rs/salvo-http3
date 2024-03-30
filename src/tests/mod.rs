@@ -11,7 +11,10 @@ use std::{
 use bytes::Bytes;
 use rustls::{Certificate, PrivateKey};
 
-use crate::{quic, http3_quinn::{self, TransportConfig}};
+use crate::{
+    http3_quinn::{self, TransportConfig},
+    quic,
+};
 
 pub fn init_tracing() {
     let _ = tracing_subscriber::fmt()

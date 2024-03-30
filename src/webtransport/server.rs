@@ -20,7 +20,7 @@ use crate::{
     proto::frame::Frame,
     quic::SendStreamUnframed,
     quic::{self, OpenStreams, RecvDatagramExt, SendDatagramExt, WriteBuf},
-    server::{self, Connection, RequestStream},
+    server::{Connection, RequestStream},
     stream::{BidiStreamHeader, BufRecvStream, UniStreamHeader},
     Error,
 };
@@ -439,7 +439,7 @@ where
     B: Buf,
 {
     #[allow(missing_docs)]
-    pub fn new(conn: &'a Mutex<server::Connection<C, B>>) -> Self {
+    pub fn new(conn: &'a Mutex<Connection<C, B>>) -> Self {
         Self { conn }
     }
 }

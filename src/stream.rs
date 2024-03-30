@@ -250,6 +250,7 @@ where
     B: Buf,
 {
     Control(FrameStream<S, B>),
+    #[allow(dead_code)]
     Push(u64, FrameStream<S, B>),
     Encoder(BufRecvStream<S, B>),
     Decoder(BufRecvStream<S, B>),

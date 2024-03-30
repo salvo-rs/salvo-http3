@@ -41,7 +41,6 @@ pub struct Settings {
     pub(crate) max_webtransport_sessions: u64,
 }
 
-
 impl From<&frame::Settings> for Settings {
     fn from(settings: &frame::Settings) -> Self {
         let defaults: Self = Default::default();

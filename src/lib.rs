@@ -7,7 +7,6 @@ mod config;
 pub mod error;
 pub mod ext;
 pub mod quic;
-pub(crate) mod request;
 pub mod server;
 
 pub use error::Error;

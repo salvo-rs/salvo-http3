@@ -130,7 +130,10 @@ where
         self.stream.send_id()
     }
 
-    fn send_data<T: Into<crate::stream::WriteBuf<B>>>(&mut self, data: T) -> Result<(), Self::Error> {
+    fn send_data<T: Into<crate::stream::WriteBuf<B>>>(
+        &mut self,
+        data: T,
+    ) -> Result<(), Self::Error> {
         self.stream.send_data(data)
     }
 
@@ -239,7 +242,10 @@ where
         self.stream.poll_ready(cx)
     }
 
-    fn send_data<T: Into<crate::stream::WriteBuf<B>>>(&mut self, data: T) -> Result<(), Self::Error> {
+    fn send_data<T: Into<crate::stream::WriteBuf<B>>>(
+        &mut self,
+        data: T,
+    ) -> Result<(), Self::Error> {
         self.stream.send_data(data)
     }
 }
