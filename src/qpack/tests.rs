@@ -1,5 +1,8 @@
-use crate::qpack::{dynamic::DynamicTable, Decoded, Decoder, DecoderError, Encoder, HeaderField};
 use std::io::Cursor;
+
+use crate::qpack::decoder::Decoder;
+use crate::qpack::encoder::Encoder;
+use crate::qpack::{dynamic::DynamicTable, Decoded, DecoderError, HeaderField};
 
 pub mod helpers {
     use crate::qpack::{dynamic::DynamicTable, HeaderField};
