@@ -274,7 +274,7 @@ impl Field {
         //# Any request or response that contains a
         //# character not permitted in a field value MUST be treated as
         //# malformed.
-        
+
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2
         //= type=implication
         //# A request or

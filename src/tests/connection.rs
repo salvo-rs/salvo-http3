@@ -7,6 +7,7 @@ use assert_matches::assert_matches;
 use bytes::{Buf, Bytes, BytesMut};
 use futures_util::future;
 use http::{Request, Response, StatusCode};
+use tokio::sync::oneshot::{self};
 
 use crate::client::SendRequest;
 use crate::{client, server};
@@ -32,15 +33,15 @@ async fn connect() {
     let mut server = pair.server();
 
     let client_fut = async {
-        let _ = client::new(pair.client().await).await.expect("client init");
+        let (mut drive, _client) = client::new(pair.client().await).await.expect("client init");
+        future::poll_fn(|cx| drive.poll_close(cx)).await.unwrap();
     };
 
     let server_fut = async {
         let conn = server.next().await;
-        let _ = server::Connection::new(conn).await.unwrap();
+        let _server = server::Connection::new(conn).await.unwrap();
     };
-
-    tokio::join!(server_fut, client_fut);
+    tokio::select!(() = server_fut => (), () = client_fut => panic!("client resolved first"));
 }
 
 #[tokio::test]
@@ -48,14 +49,21 @@ async fn accept_request_end_on_client_close() {
     let mut pair = Pair::default();
     let mut server = pair.server();
 
+    let (tx, rx) = oneshot::channel::<()>();
+
     let client_fut = async {
-        let _ = client::new(pair.client().await).await.expect("client init");
+        let client = pair.client().await;
+        let client = client::new(client).await.expect("client init");
+        // wait for the server to accept the connection
+        rx.await.unwrap();
         // client is dropped, it will send H3_NO_ERROR
+        drop(client);
     };
 
     let server_fut = async {
         let conn = server.next().await;
         let mut incoming = server::Connection::new(conn).await.unwrap();
+        tx.send(()).unwrap();
         // Accept returns Ok(None)
         assert!(incoming.accept().await.unwrap().is_none());
     };
@@ -65,6 +73,7 @@ async fn accept_request_end_on_client_close() {
 
 #[tokio::test]
 async fn server_drop_close() {
+    init_tracing();
     let mut pair = Pair::default();
     let mut server = pair.server();
 
@@ -73,8 +82,8 @@ async fn server_drop_close() {
         let _ = server::Connection::new(conn).await.unwrap();
     };
 
-    let (mut conn, mut send) = client::new(pair.client().await).await.expect("client init");
     let client_fut = async {
+        let (mut conn, mut send) = client::new(pair.client().await).await.expect("client init");
         let request_fut = async move {
             let mut request_stream = send
                 .send_request(Request::get("http://no.way").body(()).unwrap())
@@ -132,6 +141,7 @@ async fn server_send_data_without_finish() {
 
 #[tokio::test]
 async fn client_close_only_on_last_sender_drop() {
+    init_tracing();
     let mut pair = Pair::default();
     let mut server = pair.server();
 
@@ -367,13 +377,27 @@ async fn control_close_send_error() {
         //# If either control
         //# stream is closed at any point, this MUST be treated as a connection
         //# error of type H3_CLOSED_CRITICAL_STREAM.
-        control_stream.finish().await.unwrap(); // close the client control stream immediately
+        control_stream.finish().unwrap(); // close the client control stream immediately
 
-        let (mut driver, _send) = client::new(http3_quinn::Connection::new(connection))
-            .await
-            .unwrap();
+        // create the Connection manually so it does not open a second Control stream
 
-        future::poll_fn(|cx| driver.poll_close(cx)).await
+        let connection_error = loop {
+            let accepted = connection.accept_bi().await;
+            match accepted {
+                // do nothing with the stream
+                Ok(_) => continue,
+                Err(err) => break err,
+            }
+        };
+
+        let err_code = match connection_error {
+            quinn::ConnectionError::ApplicationClosed(quinn::ApplicationClose {
+                error_code,
+                ..
+            }) => error_code.into_inner(),
+            e => panic!("unexpected error: {:?}", e),
+        };
+        assert_eq!(err_code, Code::H3_CLOSED_CRITICAL_STREAM.value());
     };
 
     let server_fut = async {
@@ -391,7 +415,7 @@ async fn control_close_send_error() {
             if *reason == *"control stream closed");
     };
 
-    tokio::select! { _ = server_fut => (), _ = client_fut => panic!("client resolved first") };
+    tokio::join!(server_fut, client_fut);
 }
 
 #[tokio::test]
@@ -509,7 +533,7 @@ async fn goaway_from_server_not_request_id() {
         let mut buf = BytesMut::new();
         StreamType::CONTROL.encode(&mut buf);
         control_stream.write_all(&buf[..]).await.unwrap();
-        control_stream.finish().await.unwrap(); // close the client control stream immediately
+        control_stream.finish().unwrap(); // close the client control stream immediately
 
         let (mut driver, _send) = client::new(http3_quinn::Connection::new(connection))
             .await
