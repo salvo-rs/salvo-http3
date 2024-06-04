@@ -69,7 +69,7 @@ async fn get() {
             .await
             .expect("send_data");
         request_stream.finish().await.expect("finish");
-        
+
         let _ = incoming_req.accept().await.unwrap();
     };
 
@@ -133,7 +133,7 @@ async fn get_with_trailers_unknown_content_type() {
             .await
             .expect("send_trailers");
         request_stream.finish().await.expect("finish");
-        
+
         let _ = incoming_req.accept().await.unwrap();
     };
 
@@ -424,7 +424,7 @@ async fn header_too_big_client_error() {
 
     let server_fut = async {
         let conn = server.next().await;
-        
+
         let mut incoming_req = server::builder()
             .max_field_section_size(12)
             .build(conn)

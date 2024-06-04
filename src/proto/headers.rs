@@ -289,7 +289,7 @@ impl Field {
         }
 
         Ok(match name {
-            b":scheme" => Field::Scheme(try_value(name, value)?),            
+            b":scheme" => Field::Scheme(try_value(name, value)?),
             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.1
             //# If these fields are present, they MUST NOT be
             //# empty.

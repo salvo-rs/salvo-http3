@@ -182,7 +182,7 @@ where
         };
         Poll::Ready(Ok(Some(Self::RecvStream::new(recv))))
     }
-    
+
     fn opener(&self) -> Self::OpenStreams {
         OpenStreams {
             conn: self.conn.clone(),

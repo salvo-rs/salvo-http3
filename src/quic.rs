@@ -99,7 +99,7 @@ pub trait OpenStreams<B: Buf> {
     fn poll_open_bidi(
         &mut self,
         cx: &mut task::Context<'_>,
-       ) -> Poll<Result<Self::BidiStream, Self::OpenError>>;
+    ) -> Poll<Result<Self::BidiStream, Self::OpenError>>;
 
     /// Poll the connection to create a new unidirectional stream.
     fn poll_open_send(
