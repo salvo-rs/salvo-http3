@@ -20,7 +20,7 @@ use futures_util::{
     StreamExt,
 };
 pub use quinn::{
-    self, crypto::Session, AcceptBi, AcceptUni, ClientConfig, Endpoint, OpenBi, OpenUni,
+    self, crypto, crypto::Session, AcceptBi, AcceptUni, ClientConfig, Endpoint, OpenBi, OpenUni,
     ServerConfig, TransportConfig, VarInt, WriteError,
 };
 use quinn::{ApplicationClose, ClosedStream, ReadDatagram};
