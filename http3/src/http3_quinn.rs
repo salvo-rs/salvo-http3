@@ -16,7 +16,7 @@ use bytes::{Buf, Bytes, BytesMut};
 
 use futures_util::{
     ready,
-    stream::{self, BoxStream},
+    stream,
     Stream, StreamExt,
 };
 pub use quinn::{
