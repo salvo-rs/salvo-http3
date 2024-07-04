@@ -604,7 +604,7 @@ where
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(_)) => {
                     // could not create grease stream
-                    // dont try again
+                    // don't try again
                     self.send_grease_stream_flag = false;
                     warn!("grease stream creation failed with");
                     return Poll::Ready(());
@@ -640,7 +640,7 @@ where
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(Err(_)) => {
                         // could not write grease frame
-                        // dont try again
+                        // don't try again
                         self.send_grease_stream_flag = false;
                         warn!("write data on grease stream failed with");
                         return Poll::Ready(());
@@ -662,7 +662,7 @@ where
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(_)) => {
                     // could not finish grease stream
-                    // dont try again
+                    // don't try again
                     self.send_grease_stream_flag = false;
                     warn!("finish grease stream failed with");
                     return Poll::Ready(());
@@ -672,7 +672,7 @@ where
         };
 
         // grease stream is closed
-        // dont do another one
+        // don't do another one
         self.send_grease_stream_flag = false;
         Poll::Ready(())
     }
@@ -893,7 +893,7 @@ where
         Ok(())
     }
 
-    /// Stops an stream with an error code
+    /// Stops a stream with an error code
     pub fn stop_stream(&mut self, code: Code) {
         self.stream.reset(code.into());
     }

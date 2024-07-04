@@ -134,7 +134,7 @@ pub trait SendStream<B: Buf> {
 
 /// Allows sending unframed pure bytes to a stream. Similar to [`AsyncWrite`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncWrite.html)
 pub trait SendStreamUnframed<B: Buf>: SendStream<B> {
-    /// Attempts write data into the stream.
+    /// Attempts to write data into the stream.
     ///
     /// Returns the number of bytes written.
     ///
