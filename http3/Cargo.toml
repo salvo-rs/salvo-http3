@@ -1,6 +1,6 @@
 [package]
 name = "salvo-http3"
-version = "0.3.0"
+version = "0.3.1"
 rust-version = "1.75"
 authors = ["Sean McArthur <sean@seanmonstar.com>", "Jean-Christophe BEGUE <jc.begue@pm.me>", "Chrislearn Young <chrislearn@hotmail.com>"]
 license = "MIT"
