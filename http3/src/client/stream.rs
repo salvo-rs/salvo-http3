@@ -1,6 +1,7 @@
 use bytes::Buf;
 use futures_util::future;
 use http::{HeaderMap, Response};
+use quic::StreamId;
 
 use crate::{
     connection::{self, ConnectionState, SharedStateRef},
@@ -10,6 +11,7 @@ use crate::{
     quic::{self},
 };
 use std::convert::TryFrom;
+use std::task::{Context, Poll};
 
 /// Manage request bodies transfer, response and trailers.
 ///
@@ -145,10 +147,26 @@ where
         self.inner.recv_data().await
     }
 
+    /// Receive request body
+    pub fn poll_recv_data(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<impl Buf>, Error>> {
+        self.inner.poll_recv_data(cx)
+    }
+
     /// Receive an optional set of trailers for the response.
     pub async fn recv_trailers(&mut self) -> Result<Option<HeaderMap>, Error> {
-        let res = self.inner.recv_trailers().await;
-        if let Err(ref e) = res {
+        future::poll_fn(|cx| self.poll_recv_trailers(cx)).await
+    }
+
+    /// Poll receive an optional set of trailers for the response.
+    pub fn poll_recv_trailers(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<HeaderMap>, Error>> {
+        let res = self.inner.poll_recv_trailers(cx);
+        if let Poll::Ready(Err(e)) = &res {
             if e.is_header_too_big() {
                 self.inner.stream.stop_sending(Code::H3_REQUEST_CANCELLED);
             }
@@ -161,6 +179,11 @@ where
         // TODO take by value to prevent any further call as this request is cancelled
         // rename `cancel()` ?
         self.inner.stream.stop_sending(error_code)
+    }
+
+    /// Returns the underlying stream id
+    pub fn id(&self) -> StreamId {
+        self.inner.stream.id()
     }
 }
 

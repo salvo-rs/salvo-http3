@@ -285,6 +285,8 @@ where
     stream::SendStream<C::SendStream, Bytes>: AsyncWrite,
     C::BidiStream: SendStreamUnframed<Bytes>,
     C::SendStream: SendStreamUnframed<Bytes>,
+    <C as RecvDatagramExt>::Error: salvo_http3::quic::Error,
+    <C as SendDatagramExt<Bytes>>::Error: salvo_http3::quic::Error,
 {
     let session_id = session.session_id();
 

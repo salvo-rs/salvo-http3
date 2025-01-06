@@ -1,7 +1,7 @@
 //! WebTransport supports.
 
 use std::{
-    marker::{PhantomData, Send},
+    marker::PhantomData,
     pin::Pin,
     sync::Mutex,
     task::{Context, Poll},
@@ -12,14 +12,13 @@ use futures_util::{future::poll_fn, ready, Future};
 use http::{Request, Response, StatusCode};
 use pin_project_lite::pin_project;
 
+use crate::datagram::{Datagram, HandleDatagramsExt, RecvDatagramExt, SendDatagramExt};
 use crate::{
     connection::ConnectionState,
     error::{Code, ErrorLevel},
-    ext::Datagram,
     frame::FrameStream,
     proto::frame::Frame,
-    quic::SendStreamUnframed,
-    quic::{self, OpenStreams, RecvDatagramExt, SendDatagramExt, WriteBuf},
+    quic::{self, OpenStreams, SendStreamUnframed, WriteBuf},
     server::{Connection, RequestStream},
     stream::{BidiStreamHeader, BufRecvStream, UniStreamHeader},
     Error,
@@ -33,7 +32,8 @@ use super::{
 /// A WebTransport session.
 pub struct WebTransportSession<C, B>
 where
-    C: quic::Connection<B> + Send,
+    C: quic::Connection<B>,
+    Connection<C, B>: HandleDatagramsExt<C, B>,
     B: Buf,
 {
     // See: https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3/#section-2-3
@@ -47,7 +47,8 @@ where
 #[allow(clippy::future_not_send)]
 impl<C, B> WebTransportSession<C, B>
 where
-    C: quic::Connection<B> + Send,
+    Connection<C, B>: HandleDatagramsExt<C, B>,
+    C: quic::Connection<B>,
     B: Buf,
 {
     /// Split the session into the underlying connection and stream.
@@ -158,7 +159,7 @@ where
         // Accept the incoming stream
         let stream = poll_fn(|cx| {
             let mut conn = self.server_conn.lock().unwrap();
-            conn.poll_accept_request(cx)
+            conn.poll_accept_request_stream(cx)
         })
         .await;
 
@@ -406,6 +407,7 @@ impl<'a, C, B> Future for ReadDatagram<'a, C, B>
 where
     C: quic::Connection<B> + RecvDatagramExt,
     B: Buf,
+    <C as RecvDatagramExt>::Error: crate::quic::Error + 'static,
 {
     type Output = Result<Option<(SessionId, C::Buf)>, Error>;
 

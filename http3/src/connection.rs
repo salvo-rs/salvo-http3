@@ -244,20 +244,6 @@ where
             future::poll_fn(|cx| conn.poll_open_send(cx)).await,
             future::poll_fn(|cx| conn.poll_open_send(cx)).await,
         );
-
-        let control_send =
-            control_send.map_err(|e| Code::H3_STREAM_CREATION_ERROR.with_transport(e))?;
-
-        let qpack_encoder = match qpack_encoder {
-            Ok(stream) => Some(stream),
-            Err(_) => None,
-        };
-
-        let qpack_decoder = match qpack_decoder {
-            Ok(stream) => Some(stream),
-            Err(_) => None,
-        };
-
         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
         //= type=implication
         //# The
@@ -266,7 +252,7 @@ where
         let mut conn_inner = Self {
             shared,
             conn,
-            control_send,
+            control_send: control_send.map_err(Error::transport_err)?,
             control_recv: None,
             decoder_recv: None,
             encoder_recv: None,
@@ -275,8 +261,8 @@ where
             send_grease_frame: config.send_grease,
             config,
             accepted_streams: Default::default(),
-            decoder_send: qpack_decoder,
-            encoder_send: qpack_encoder,
+            decoder_send: qpack_decoder.ok(),
+            encoder_send: qpack_encoder.ok(),
             // send grease stream if configured
             send_grease_stream_flag: config.send_grease,
             // start at first step
@@ -317,7 +303,7 @@ where
     }
 
     #[allow(missing_docs)]
-    pub fn poll_accept_request(
+    pub fn poll_accept_bi(
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<C::BidiStream>, Error>> {
@@ -774,13 +760,15 @@ where
         future::poll_fn(|cx| self.poll_recv_data(cx)).await
     }
 
-    /// Receive trailers
-    pub async fn recv_trailers(&mut self) -> Result<Option<HeaderMap>, Error> {
+    /// Poll receive trailers.
+    pub fn poll_recv_trailers(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<HeaderMap>, Error>> {
         let mut trailers = if let Some(encoded) = self.trailers.take() {
             encoded
         } else {
-            let frame = future::poll_fn(|cx| self.stream.poll_next(cx))
-                .await
+            let frame = futures_util::ready!(self.stream.poll_next(cx))
                 .map_err(|e| self.maybe_conn_err(e))?;
             match frame {
                 Some(Frame::Headers(encoded)) => encoded,
@@ -807,20 +795,29 @@ where
                 //# The MAX_PUSH_ID frame is always sent on the control stream.  Receipt
                 //# of a MAX_PUSH_ID frame on any other stream MUST be treated as a
                 //# connection error of type H3_FRAME_UNEXPECTED.
-                Some(_) => return Err(Code::H3_FRAME_UNEXPECTED.into()),
-                None => return Ok(None),
+                Some(_) => return Poll::Ready(Err(Code::H3_FRAME_UNEXPECTED.into())),
+                None => return Poll::Ready(Ok(None)),
             }
         };
 
         if !self.stream.is_eos() {
             // Get the trailing frame
-            let trailing_frame = future::poll_fn(|cx| self.stream.poll_next(cx))
-                .await
-                .map_err(|e| self.maybe_conn_err(e))?;
-
-            if trailing_frame.is_some() {
-                // if it's not unknown or reserved, fail.
-                return Err(Code::H3_FRAME_UNEXPECTED.into());
+            match self
+                .stream
+                .poll_next(cx)
+                .map_err(|e| self.maybe_conn_err(e))?
+            {
+                Poll::Ready(trailing_frame) => {
+                    if trailing_frame.is_some() {
+                        // if it's not unknown or reserved, fail.
+                        return Poll::Ready(Err(Code::H3_FRAME_UNEXPECTED.into()));
+                    }
+                }
+                Poll::Pending => {
+                    // save the trailers and try again.
+                    self.trailers = Some(trailers);
+                    return Poll::Pending;
+                }
             }
         }
 
@@ -830,16 +827,16 @@ where
                 //# An HTTP/3 implementation MAY impose a limit on the maximum size of
                 //# the message header it will accept on an individual HTTP message.
                 Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
-                    return Err(Error::header_too_big(
+                    return Poll::Ready(Err(Error::header_too_big(
                         cancel_size,
                         self.max_field_section_size,
-                    ))
+                    )))
                 }
                 Ok(decoded) => decoded,
-                Err(e) => return Err(e.into()),
+                Err(e) => return Poll::Ready(Err(e.into())),
             };
 
-        Ok(Some(Header::try_from(fields)?.into_fields()))
+        Poll::Ready(Ok(Some(Header::try_from(fields)?.into_fields())))
     }
 
     #[allow(missing_docs)]

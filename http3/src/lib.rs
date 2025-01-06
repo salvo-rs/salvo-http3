@@ -26,6 +26,7 @@ pub mod webtransport;
 
 #[cfg(feature = "quinn")]
 pub mod http3_quinn;
+pub mod datagram;
 
 #[allow(dead_code)]
 mod qpack;

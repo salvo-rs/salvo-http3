@@ -191,7 +191,7 @@ async fn settings_exchange_client() {
     //# After the QUIC connection is
     //# established, a SETTINGS frame MUST be sent by each endpoint as the
     //# initial frame of their respective HTTP control stream.
-    
+
     init_tracing();
     let mut pair = Pair::default();
     let mut server = pair.server();

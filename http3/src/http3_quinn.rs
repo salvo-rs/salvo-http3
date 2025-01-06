@@ -14,22 +14,16 @@ use std::{
 
 use bytes::{Buf, Bytes, BytesMut};
 
-use futures_util::{
-    ready,
-    stream,
-    Stream, StreamExt,
-};
+use futures_util::{ready, stream, Stream, StreamExt};
 pub use quinn::{
     self, crypto, crypto::Session, AcceptBi, AcceptUni, ClientConfig, Endpoint, OpenBi, OpenUni,
     ServerConfig, TransportConfig, VarInt, WriteError,
 };
 use quinn::{ApplicationClose, ClosedStream, ReadDatagram};
-
-use crate::{
-    ext::Datagram,
-    quic::{self, Error, StreamId, WriteBuf},
-};
 use tokio_util::sync::ReusableBoxFuture;
+
+use crate::datagram::{Datagram, SendDatagramExt, RecvDatagramExt};
+use crate::quic::{self, Error, StreamId, WriteBuf};
 
 /// BoxStream with Sync trait
 type BoxStreamSync<'a, T> = Pin<Box<dyn Stream<Item = T> + Sync + Send + 'a>>;
@@ -243,7 +237,7 @@ where
     }
 }
 
-impl<B> quic::SendDatagramExt<B> for Connection
+impl<B> SendDatagramExt<B> for Connection
 where
     B: Buf,
 {
@@ -259,7 +253,7 @@ where
     }
 }
 
-impl quic::RecvDatagramExt for Connection {
+impl RecvDatagramExt for Connection {
     type Buf = Bytes;
 
     type Error = ConnectionError;
