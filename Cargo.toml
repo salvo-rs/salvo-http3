@@ -21,7 +21,7 @@ bytes = "1"
 futures-util = { version = "0.3", default-features = false }
 h3 = {version = "0.0.7", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]}
 h3-datagram = { version = "0.0.1" }
-h3-quinn = { version = "0.0.9", optional = true}
+h3-quinn = { version = "0.0.9", features = ["datagram"], optional = true}
 http = "1"
 pin-project-lite = { version = "0.2", default-features = false }
 tracing = "0.1.41"

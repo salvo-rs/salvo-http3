@@ -60,6 +60,18 @@ where
     C: quic::Connection<B>,
     B: Buf,
 {
+    /// Split the session into the underlying connection and stream.
+    #[allow(clippy::type_complexity)]
+    pub fn split(self) -> (Mutex<Connection<C, B>>, RequestStream<C::BidiStream, B>) {
+        let WebTransportSession {
+            server_conn,
+            connect_stream,
+            ..
+        } = self;
+
+        (server_conn, connect_stream)
+    }
+    
     /// Accepts a *CONNECT* request for establishing a WebTransport session.
     ///
     /// TODO: is the API or the user responsible for validating the CONNECT request?
