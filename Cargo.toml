@@ -1,6 +1,6 @@
 [package]
 name = "salvo-http3"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.85"
 documentation = "https://docs.rs/salvo-http3"
@@ -19,10 +19,10 @@ quinn = ["dep:h3-quinn"]
 [dependencies]
 bytes = "1"
 futures-util = { version = "0.3", default-features = false }
-h3 = {version = "0.0.7", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]}
-h3-datagram = { version = "0.0.1" }
-h3-quinn = { version = "0.0.9", features = ["datagram"], optional = true}
+h3 = {version = "0.0.8", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]}
+h3-datagram = { version = "0.0.2" }
+h3-quinn = { version = "0.0.10", features = ["datagram"], optional = true}
 http = "1"
 pin-project-lite = { version = "0.2", default-features = false }
-tracing = "0.1.41"
-tokio = { version = "1.44.1", default-features = false }
+tracing = "0.1"
+tokio = { version = "1", default-features = false }
