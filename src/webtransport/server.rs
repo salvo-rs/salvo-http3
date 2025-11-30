@@ -173,7 +173,7 @@ where
     }
 
     /// Accept an incoming unidirectional stream from the client, it reads the stream until EOF.
-    pub fn accept_uni(&self) -> AcceptUni<C, B> {
+    pub fn accept_uni(&self) -> AcceptUni<'_, C, B> {
         AcceptUni {
             conn: &self.server_conn,
         }
@@ -215,13 +215,13 @@ where
             // Make the underlying HTTP/3 connection handle the rest
             frame => {
                 let (req, resp) = resolver.accept_with_frame(frame)?.resolve().await?;
-                Ok(Some(AcceptedBi::Request(req, resp)))
+                Ok(Some(AcceptedBi::Request(Box::new(req), resp)))
             }
         }
     }
 
     /// Open a new bidirectional stream
-    pub fn open_bi(&self, session_id: SessionId) -> OpenBi<C, B> {
+    pub fn open_bi(&self, session_id: SessionId) -> OpenBi<'_, C, B> {
         OpenBi {
             opener: &self.opener,
             stream: None,
@@ -233,7 +233,7 @@ where
     }
 
     /// Open a new unidirectional stream
-    pub fn open_uni(&self, session_id: SessionId) -> OpenUni<C, B> {
+    pub fn open_uni(&self, session_id: SessionId) -> OpenUni<'_, C, B> {
         OpenUni {
             opener: &self.opener,
             stream: None,
@@ -376,7 +376,7 @@ pub enum AcceptedBi<C: quic::Connection<B>, B: Buf> {
     /// An incoming HTTP/3 request, passed through a webtransport session.
     ///
     /// This makes it possible to respond to multiple CONNECT requests
-    Request(Request<()>, RequestStream<C::BidiStream, B>),
+    Request(Box<Request<()>>, RequestStream<C::BidiStream, B>),
 }
 
 /// Future for [`WebTransportSession::accept_uni`]

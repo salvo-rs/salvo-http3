@@ -1,8 +1,8 @@
 [package]
 name = "salvo-http3"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.89"
 documentation = "https://docs.rs/salvo-http3"
 repository = "https://github.com/salvo-rs/salvo-http3"
 readme = "README.md"
