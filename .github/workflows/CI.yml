@@ -8,7 +8,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   toolchain_style: stable
-  toolchain_msrv: 1.70.0
+  toolchain_msrv: 1.89.0
   toolchain_h3_quinn_msrv: 1.71.0
   toolchain_doc: nightly-2024-12-02
   toolchain_lint: stable
@@ -108,7 +108,7 @@ jobs:
           command: test
       - name: h3Spec
         run: ./ci/h3spec.sh
-        if: matrix.toolchain == 'stable'
+        if: matrix.toolchain == 'stable' && hashFiles('ci/h3spec.sh') != ''
 
   doc:
     name: Build docs
