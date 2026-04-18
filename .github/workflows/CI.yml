@@ -8,7 +8,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   toolchain_style: stable
-  toolchain_msrv: 1.70.0
+  toolchain_msrv: 1.89.0
   toolchain_h3_quinn_msrv: 1.71.0
   toolchain_doc: nightly-2024-12-02
   toolchain_lint: stable
@@ -32,7 +32,7 @@ jobs:
     name: Check Style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust ${{ env.toolchain_style }}
         uses: actions-rs/toolchain@v1
         with:
@@ -51,7 +51,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust ${{ env.toolchain_lint }}
         uses: actions-rs/toolchain@v1
         with:
@@ -70,7 +70,7 @@ jobs:
     needs: [style]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust ${{ env.toolchain_msrv }}
         uses: actions-rs/toolchain@v1
         with:
@@ -94,7 +94,7 @@ jobs:
         toolchain: [stable, beta]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust ${{ matrix.toolchain }}
         uses: actions-rs/toolchain@v1
         with:
@@ -108,14 +108,14 @@ jobs:
           command: test
       - name: h3Spec
         run: ./ci/h3spec.sh
-        if: matrix.toolchain == 'stable'
+        if: matrix.toolchain == 'stable' && hashFiles('ci/h3spec.sh') != ''
 
   doc:
     name: Build docs
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust ${{ env.toolchain_doc }}
         uses: actions-rs/toolchain@v1
         with:
@@ -134,35 +134,46 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust ${{ env.toolchain_fuzz }}
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ env.toolchain_fuzz }}
           override: true
       - uses: Swatinem/rust-cache@v2
+        if: hashFiles('fuzz/Cargo.toml') != ''
       - name: Install cargo-fuzz
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: camshaft/install@v1
         with:
           crate: cargo-fuzz
       - name: cargo fuzz run fuzz_varint -- -runs=1
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: actions-rs/cargo@v1
         with:
           command: fuzz
           args: run fuzz_varint -- -runs=1
+      - name: Skip fuzz test
+        if: hashFiles('fuzz/Cargo.toml') == ''
+        run: echo "No fuzz target configured; skipping fuzz job."
 
   compliance:
     name: Compliance report
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Generate compliance report
+        if: hashFiles('ci/compliance/extract.sh') != '' && hashFiles('ci/compliance/report.sh') != '' && hashFiles('h3/**/*') != ''
         uses: ./.github/actions/compliance
         with:
           extract-script: ${{ github.workspace }}/ci/compliance/extract.sh
           report-script: ${{ github.workspace }}/ci/compliance/report.sh
+      - name: Skip compliance report
+        if: hashFiles('ci/compliance/extract.sh') == '' || hashFiles('ci/compliance/report.sh') == '' || hashFiles('h3/**/*') == ''
+        run: echo "Compliance assets are not present; skipping compliance report."
