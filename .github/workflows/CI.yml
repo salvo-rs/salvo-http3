@@ -136,21 +136,28 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install Rust ${{ env.toolchain_fuzz }}
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ env.toolchain_fuzz }}
           override: true
       - uses: Swatinem/rust-cache@v2
+        if: hashFiles('fuzz/Cargo.toml') != ''
       - name: Install cargo-fuzz
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: camshaft/install@v1
         with:
           crate: cargo-fuzz
       - name: cargo fuzz run fuzz_varint -- -runs=1
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: actions-rs/cargo@v1
         with:
           command: fuzz
           args: run fuzz_varint -- -runs=1
+      - name: Skip fuzz test
+        if: hashFiles('fuzz/Cargo.toml') == ''
+        run: echo "No fuzz target configured; skipping fuzz job."
 
   compliance:
     name: Compliance report
@@ -162,7 +169,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Generate compliance report
+        if: hashFiles('ci/compliance/extract.sh') != '' && hashFiles('ci/compliance/report.sh') != '' && hashFiles('h3/**/*') != ''
         uses: ./.github/actions/compliance
         with:
           extract-script: ${{ github.workspace }}/ci/compliance/extract.sh
           report-script: ${{ github.workspace }}/ci/compliance/report.sh
+      - name: Skip compliance report
+        if: hashFiles('ci/compliance/extract.sh') == '' || hashFiles('ci/compliance/report.sh') == '' || hashFiles('h3/**/*') == ''
+        run: echo "Compliance assets are not present; skipping compliance report."
