@@ -32,7 +32,7 @@ jobs:
     name: Check Style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust ${{ env.toolchain_style }}
         uses: actions-rs/toolchain@v1
         with:
@@ -51,7 +51,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust ${{ env.toolchain_lint }}
         uses: actions-rs/toolchain@v1
         with:
@@ -70,7 +70,7 @@ jobs:
     needs: [style]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust ${{ env.toolchain_msrv }}
         uses: actions-rs/toolchain@v1
         with:
@@ -94,7 +94,7 @@ jobs:
         toolchain: [stable, beta]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust ${{ matrix.toolchain }}
         uses: actions-rs/toolchain@v1
         with:
@@ -115,7 +115,7 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust ${{ env.toolchain_doc }}
         uses: actions-rs/toolchain@v1
         with:
@@ -134,7 +134,7 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust ${{ env.toolchain_fuzz }}
         if: hashFiles('fuzz/Cargo.toml') != ''
         uses: actions-rs/toolchain@v1
@@ -164,7 +164,7 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
